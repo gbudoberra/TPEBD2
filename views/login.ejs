@@ -20,25 +20,16 @@
     </ul>
 
     <ul>
-      <% if(messages.success_msg) { %>
-      <li><%= messages.success_msg %></li>
-      <% } %>
+        <% if(success != '') { %>
+        <li><%= success %></li>
+        <% } %>
     </ul>
 
-    <ul>
-      <% if (messages.error) { %>
-      <li><%= messages.error %></li>
-      <% } %>
-    </ul>
 
     <form action="/login" method="POST">
       <div>
         <input
-          type="email"
-          id="email"
-          name="email"
-          placeholder="Email"
-          required
+        type="text" id="username" name="username" placeholder="Userame" required
         />
       </div>
       <div>

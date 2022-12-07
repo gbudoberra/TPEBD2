@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const passport = require("passport");
-const flash = require("express-flash");
+const flash = require("connect-flash");
 const session = require("express-session");
 const morgan = require("morgan"); //Logging
 const mongoose = require("mongoose");
@@ -40,6 +40,8 @@ app.use(passport.initialize());
 // Store our variables to be persisted across the whole session. Works with app.use(Session) above
 app.use(passport.session());
 
+app.use(flash());
+
 app.use(express.json());
 app.use(morgan("dev"));
 
@@ -73,10 +75,6 @@ app.post("/register", async (req, res) => {
 
   if (!username || !password || !password2) {
     errors.push({ message: "Please enter all fields" });
-  }
-
-  if (password.length < 6) {
-    errors.push({ message: "Password must be a least 6 characters long" });
   }
 
   if (password !== password2) {
@@ -114,7 +112,7 @@ app.post("/register", async (req, res) => {
                 throw err;
               }
               console.log(results.rows);
-              req.flash("success_msg", "You are now registered. Please log in");
+              req.flash("success", "You are now registered. Please log in");
               res.redirect("/login");
             }
           );
@@ -125,9 +123,8 @@ app.post("/register", async (req, res) => {
 });
 
 app.get("/login", checkAuthenticated, (req, res) => {
-  // flash sets a messages variable. passport sets the error message
-  console.log(req.session.flash.error);
-  res.render("login.ejs");
+  const success = req.flash('success');
+  res.render("login.ejs", { success });
 });
 
 app.post("/login",
@@ -145,8 +142,10 @@ app.get("/dashboard", checkNotAuthenticated, (req, res) => {
 
 
 app.get("/logout", (req, res) => {
-  req.logout();
-  res.render("index", { message: "You have logged out successfully" });
+  req.logout(function(err) {
+    if (err) { return next(err); }
+    res.redirect('/');
+  });
 });
 
 
@@ -230,7 +229,7 @@ function checkNotAuthenticated(req, res, next) {
   res.redirect("/login");
 }
 
-mongoose.connect(process.env.MONGODB_URI)               // Then, connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI)
             .then(() => {
                 console.log("MongoDB: DB connected");
             })
@@ -238,7 +237,7 @@ mongoose.connect(process.env.MONGODB_URI)               // Then, connect to Mong
                 console.log(err);
 });
 
-app.listen(3000);                          // Finally, run server
-                                                                // TODO: Agregar parametros al server o dejar los default?
-console.log("Server on port 3000");
-    
+
+app.listen(3000, () => {
+  console.log("Server on port 3000");
+});

@@ -15,7 +15,7 @@ initializePassport(passport);
 
 
 const notesSchema = require("./src/models/notes");
-const { updateOne } = require("./src/models/notes");
+// const { updateOne } = require("./src/models/notes");
 
 
 const { postgreSQL } = require("./dbConfig.js");
@@ -45,19 +45,12 @@ app.use(flash());
 app.use(express.json());
 app.use(morgan("dev"));
 
-app.get("/test", (req, res) => {
-  postgreSQL.query("SELECT * from test").then(
-      (queryResult) => {
-          res.send(queryResult);
-      }
-  );
-})
-
-
-app.get("/", (req, res) => {
+//// HOME
+app.get("/", checkAuthenticated, (req, res) => {
   res.render("index");
 });
 
+//// Register
 app.get("/register", checkAuthenticated, (req, res) => {
   res.render("register.ejs");
 });
@@ -94,6 +87,9 @@ app.post("/register", async (req, res) => {
       (err, results) => {
         if (err) {
           console.log(err);
+            return res.render("register", {
+                message: "Internal server error :("
+            });
         }
         console.log(results.rows);
 
@@ -122,6 +118,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
+//// LOGIN
 app.get("/login", checkAuthenticated, (req, res) => {
   const success = req.flash('success');
   res.render("login.ejs", { success });
@@ -135,85 +132,121 @@ app.post("/login",
   })
 );
 
+app.get("/logout", checkNotAuthenticated, (req, res) => {
+    req.logout(function(err) {
+        if (err) { return next(err); }
+        res.redirect('/');
+    });
+});
+
+
+//// DASHBOARD
 app.get("/dashboard", checkNotAuthenticated, (req, res) => {
-  console.log(req.isAuthenticated());
-  res.render("dashboard", { user: req.user.name });
+  res.render("dashboard");
 });
 
+function errorRender(err, res) {
+    console.log(err);
+    res.render("error", {msg : err});
+}
 
-app.get("/logout", (req, res) => {
-  req.logout(function(err) {
-    if (err) { return next(err); }
-    res.redirect('/');
-  });
+//// FILES
+app.get("/files", checkNotAuthenticated, (req, res) => {
+    console.log(req.isAuthenticated());
+
+    postgreSQL.query('SELECT * FROM files WHERE owner = $1', [req.user.id],
+        (err, result) => {
+        console.log(result.rows, result.rowCount);
+        err? errorRender(err, res) : res.render("files", { files: result.rows, nFiles: result.rowCount});
+    }
+        )
+
 });
 
+app.post("/files", checkNotAuthenticated, (req, res) => {
+    console.log(req.isAuthenticated());
 
-
-
-
-
-
-
-
-app.get("/files", (req, res) => {
-  notesSchema
-    .find()
-    .then((result) => {
-      res.render("files", {res : result});
-    })
-    .catch((err) => {
-      console.log(err);
+    // Save in MongoDB
+    notesSchema({
+        content: "Hello world",
+        owner: req.user.id
+    }).save().then((result) => {
+            console.log(result)
+            postgreSQL.query(
+                'INSERT INTO files (mongoId, owner, title, tag) VALUES ($1, $2, $3, $4) RETURNING mongoId', [result._id.toString(), req.user.id, req.body.title, req.body.tag],
+                (err) => {
+                    if(err){
+                        notesSchema.remove({ _id: result._id });
+                        errorRender(err, res);
+                    }
+                    res.redirect("/files/" + result._id);
+                }
+            );
+        }
+    ).catch((err) => {
+        errorRender(err, res)
     });
+
 });
 
-app.post("/files", (req, res) => {
-  const note = notesSchema(req.body);
-  note.save().then((result) => {
-    res.json(result).catch((err) => {
-      console.log(err);
-    });
-  });
-  res.send("Files created");
+app.get("/files/:id", checkNotAuthenticated, (req, res) => {
+    const { id } = req.params;
+    var title;
+
+    //// Check owner is correct and retrieve title
+    // TODO Podriamos evitar el acceso a postgresql?
+    postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
+        (err, result) => {
+            if(err){
+                return errorRender(err, res);
+            }else {
+                if(result.rowCount === 0)
+                    return errorRender('Not Found', res);       // TODO Return Not Found
+                if(result.rows[0].owner != req.user.id)
+                    return errorRender('Forbidden', res);       // TODO Return forbidden
+                title = result.rows[0].title;
+                notesSchema
+                    .findById(id)
+                    .then((result) => {
+                        console.log(result)
+                        res.render('file', { title: title, content: result.content, id: result._id.toString()});
+                    })
+                    .catch((err) => {
+                        errorRender(err, res);
+                    });
+            }
+        }
+    )
 });
 
-app.put("/files/:id", (req, res) => {
+app.post("/files/:id", checkNotAuthenticated, (req, res) => {
   const { id } = req.params;
   const { content } = req.body;
   notesSchema
-    .updateOne({ _id: id }, { $set: { content } })
-    .then((result) => {
-      res.json(result);
+    .updateOne({ _id: id, owner: req.user.id }, { $set: { content } })
+    .then(() => {
+        res.redirect('back');
     })
     .catch((err) => {
       console.log(err);
     });
 });
 
-app.delete("/files/:id", (req, res) => {
+app.delete("/files/:id", checkNotAuthenticated, (req, res) => {
     const { id } = req.params;
-    const { content } = req.body;
     notesSchema
-      .remove({ _id: id })
-      .then((result) => {
-        res.json(result);
+      .remove({ _id: id , owner: req.user.id })
+      .then(() => {
+          postgreSQL.query('DELETE FROM files WHERE mongoid = $1', [id],
+              () => {       // TODO error?
+                res.redirect('/dashboard');
+              }
+          );
       })
       .catch((err) => {
         console.log(err);
       });
   });
-
-app.get("/files/:id", (req, res) => {
-  const { id } = req.params;
-  notesSchema
-    .findById(id)
-    .then((result) => {
-      res.json(result);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-});
 
 function checkAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {

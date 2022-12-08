@@ -145,8 +145,9 @@ app.get("/dashboard", checkNotAuthenticated, (req, res) => {
   res.render("dashboard");
 });
 
-function errorRender(err, res) {
+function errorRender(err, status, res) {
     console.log(err);
+    res.status(status)
     res.render("error", {msg : err});
 }
 
@@ -157,7 +158,7 @@ app.get("/files", checkNotAuthenticated, (req, res) => {
     postgreSQL.query('SELECT * FROM files WHERE owner = $1', [req.user.id],
         (err, result) => {
         console.log(result.rows, result.rowCount);
-        err? errorRender(err, res) : res.render("files", { files: result.rows, nFiles: result.rowCount});
+        err? errorRender(err,500, res) : res.render("files", { files: result.rows, nFiles: result.rowCount});
     }
         )
 
@@ -177,14 +178,14 @@ app.post("/files", checkNotAuthenticated, (req, res) => {
                 (err) => {
                     if(err){
                         notesSchema.remove({ _id: result._id });
-                        errorRender(err, res);
+                        errorRender(err,500, res);
                     }
                     res.redirect("/files/" + result._id);
                 }
             );
         }
     ).catch((err) => {
-        errorRender(err, res)
+        errorRender(err, 500,res)
     });
 
 });
@@ -198,12 +199,12 @@ app.get("/files/:id", checkNotAuthenticated, (req, res) => {
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
             if(err){
-                return errorRender(err, res);
+                return errorRender(err,500, res);
             }else {
                 if(result.rowCount === 0)
-                    return errorRender('Not Found', res);       // TODO Return Not Found
+                    return errorRender('Not Found',404, res);       // TODO Return Not Found
                 if(result.rows[0].owner != req.user.id)
-                    return errorRender('Forbidden', res);       // TODO Return forbidden
+                    return errorRender('Forbidden', 401, res);       // TODO Return forbidden
                 title = result.rows[0].title;
                 notesSchema
                     .findById(id)
@@ -212,7 +213,7 @@ app.get("/files/:id", checkNotAuthenticated, (req, res) => {
                         res.render('file', { title: title, content: result.content, id: result._id.toString()});
                     })
                     .catch((err) => {
-                        errorRender(err, res);
+                        errorRender(err, 500, res);
                     });
             }
         }
@@ -247,6 +248,10 @@ app.delete("/files/:id", checkNotAuthenticated, (req, res) => {
         console.log(err);
       });
   });
+
+app.use((req, res) => {
+    return errorRender('Not Found',404, res);       // TODO Return Not Found
+});
 
 function checkAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {

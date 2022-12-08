@@ -11,12 +11,18 @@
     <title>Home</title>
   </head>
   <body>
-    <h1>Home</h1>
-
-    <% if (typeof message !== 'undefined' ) { %>
-    <p><%= message %></p>
-    <% } %>
-
-    <a href="/login">Login</a>
+  <div class="container" style="text-align: center">
+    <div>
+      <img src="https://t3.ftcdn.net/jpg/02/20/14/38/360_F_220143804_fc4xRygvJ8bn8JPQumtHJieDN4ORNyjs.jpg" alt="welcome"/>
+      <% if (typeof message !== 'undefined' ) { %>
+        <p><%= message %></p>
+      <% } %>
+    </div>
+    <div style="text-align: center"><h2>Manage all your files online now!</h2></div>
+    <div style="text-align: center">
+      <div><a href="/login"><button>Login</button></a></div>
+      <div><a href="/register"><button>Register</button></a></div>
+    </div>
+  </div>
   </body>
 </html>

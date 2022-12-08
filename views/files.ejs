@@ -1,12 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.css"
+    />
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Files</title>
 </head>
 <body>
-    <h1><%= res %></h1>
+    <div class="container" style="text-align: center">
+        <% for (var i = 0; i < nFiles; i++) { %>
+            <a target="_parent" href="/files/<%= files[i].mongoid %>"><button class="button buttonFile"><%= files[i].title %> | <%= files[i].tag %></button></a>
+        <% } %>
+    </div>
 </body>
 </html>

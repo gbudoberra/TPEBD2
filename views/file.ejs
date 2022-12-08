@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.css"
+    />
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File</title>
+</head>
+<body>
+<div class="container" style="text-align: center">
+    <form action="/files/<%= id%>" method="post">
+        <div>
+            <h1><label for="content"><%= title%></label></h1>
+            <textarea placeholder="Start writing!" id="content" name="content"><%= content%></textarea>
+        </div>
+        <div>
+            <input type="submit" value="Save" />
+        </div>
+    </form>
+    <a href="/dashboard"><button onclick="return confirm('Any not saved changes will be lost!')">Go back to dashboard</button></a>
+</div>
+</body>
+<style>
+    textarea {
+        outline: none;
+        resize: none;
+        width: 80%;
+        margin: 5px;
+        padding: 5px;
+    }
+</style>
+<script>
+    const tx = document.getElementsByTagName("textarea");
+    for (let i = 0; i < tx.length; i++) {
+        tx[i].setAttribute("style", "height:" + (tx[i].scrollHeight) + "px;overflow-y:hidden;");
+        tx[i].addEventListener("input", OnInput, false);
+    }
+
+    function OnInput() {
+        this.style.height = 0;
+        this.style.height = (this.scrollHeight) + "px";
+    }
+</script>
+</html>

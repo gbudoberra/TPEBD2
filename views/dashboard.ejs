@@ -11,10 +11,28 @@
     <title>Dashboard</title>
   </head>
   <body>
+  <div style="text-align: center">
     <h1>Dashboard</h1>
 
-    <a href="/logout">Logout</a>
+    <embed src="/files"/>
 
-    <h4>Hello <%= user %></h4>
+    <div>
+      <form action="/files" method="POST">
+        <a>New file:</a>
+        <input type="text" id="title" name="title" placeholder="Title" required/>
+        <input type="text" id="tag" name="tag" placeholder="Tag" required/>
+        <input type="submit" value="Save" />
+      </form>
+    </div>
+
+    <a href="/logout"><button style="color: tomato">Logout</button></a>
+  </div>
   </body>
+<style>
+  embed {
+    width: 80%;
+    margin: 5px;
+    padding: 5px;
+  }
+</style>
 </html>

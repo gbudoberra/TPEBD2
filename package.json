@@ -2,9 +2,9 @@
   "name": "tpebd2",
   "version": "1.0.0",
   "description": "TPE BD2",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js"
+    "dev": "nodemon src/server.js"
   },
   "license": "ISC",
   "dependencies": {
@@ -21,7 +21,9 @@
     "passport": "^0.6.0",
     "passport-local": "^1.0.0",
     "pg": "^8.8.0",
-    "pg-promise": "^10.15.4"
+    "pg-promise": "^10.15.4",
+    "swagger-jsdoc": "^6.2.7",
+    "swagger-ui-express": "^4.6.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"

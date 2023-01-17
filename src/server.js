@@ -18,7 +18,7 @@ const swaggerSpec = {
   definition:{
     openapi: "3.0.0",
     info: {
-      title: "Notion Bases II API",
+      title: "Final Bases II API",
       version: "1.0.0"
     },
     servers: [
@@ -71,9 +71,14 @@ app.use(flash());
 app.use(express.json());
 app.use(morgan("dev"));
 
-//// HOME
+///// HOME
 app.get("/", checkAuthenticated, (req, res) => {
-  res.render("index");
+  res.render("index.ejs");
+});
+
+//// WELCOME
+app.get("/welcome", checkAuthenticated, (req, res) => {
+  res.render("welcome.ejs");
 });
 
 //// Register

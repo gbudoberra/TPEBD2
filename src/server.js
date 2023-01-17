@@ -6,7 +6,30 @@ const session = require("express-session");
 const morgan = require("morgan"); //Logging
 const mongoose = require("mongoose");
 const app = express();
+const path = require("path")
 require("dotenv").config();
+
+const apiRoute = require("./swagger");
+
+
+const swaggerUI = require("swagger-ui-express")
+const swaggerJsDoc = require("swagger-jsdoc")
+const swaggerSpec = {
+  definition:{
+    openapi: "3.0.0",
+    info: {
+      title: "Final Bases II API",
+      version: "1.0.0"
+    },
+    servers: [
+      {
+        url: "http://localhost:3000"
+      }
+    ]
+  },
+  apis: [`${path.join(__dirname, "./swagger.js")}`]
+}
+app.use("/api-doc", swaggerUI.serve, swaggerUI.setup(swaggerJsDoc(swaggerSpec)))
 
 
 const initializePassport = require("./passportConfig");
@@ -14,7 +37,7 @@ const initializePassport = require("./passportConfig");
 initializePassport(passport);
 
 
-const notesSchema = require("./src/models/notes");
+const notesSchema = require("./models/notes");
 // const { updateOne } = require("./src/models/notes");
 
 
@@ -23,6 +46,9 @@ const { postgreSQL } = require("./dbConfig.js");
 // Parses details from a form
 app.use(express.urlencoded({ extended: false }));
 app.set('view engine', 'ejs')
+app.set('views', path.join(__dirname, './views'));
+
+app.use("/api", apiRoute);
 
 
 app.use(
@@ -45,9 +71,14 @@ app.use(flash());
 app.use(express.json());
 app.use(morgan("dev"));
 
-//// HOME
+///// HOME
 app.get("/", checkAuthenticated, (req, res) => {
-  res.render("index");
+  res.render("index.ejs");
+});
+
+//// WELCOME
+app.get("/welcome", checkAuthenticated, (req, res) => {
+  res.render("welcome.ejs");
 });
 
 //// Register
@@ -266,7 +297,7 @@ function checkNotAuthenticated(req, res, next) {
   }
   res.redirect("/login");
 }
-
+mongoose.set('strictQuery', true);
 mongoose.connect(process.env.MONGODB_URI)
             .then(() => {
                 console.log("MongoDB: DB connected");
@@ -279,3 +310,4 @@ mongoose.connect(process.env.MONGODB_URI)
 app.listen(3000, () => {
   console.log("Server on port 3000");
 });
+

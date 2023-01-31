@@ -184,7 +184,6 @@ function errorRender(err, status, res) {
 
 //// FILES
 app.get("/files", checkNotAuthenticated, (req, res) => {
-    console.log(req.isAuthenticated());
 
     postgreSQL.query('SELECT * FROM files WHERE owner = $1', [req.user.id],
         (err, result) => {
@@ -223,29 +222,53 @@ app.post("/files", checkNotAuthenticated, (req, res) => {
 
 app.get("/files/:id", checkNotAuthenticated, (req, res) => {
     const { id } = req.params;
-    var title;
 
-    //// Check owner is correct and retrieve title
-    // TODO Podriamos evitar el acceso a postgresql?
+    //// Check permit and retrieve title
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
             if(err){
                 return errorRender(err,500, res);
             }else {
+
                 if(result.rowCount === 0)
-                    return errorRender('Not Found',404, res);       // TODO Return Not Found
-                if(result.rows[0].owner != req.user.id)
-                    return errorRender('Forbidden', 401, res);       // TODO Return forbidden
-                title = result.rows[0].title;
-                notesSchema
-                    .findById(id)
-                    .then((result) => {
-                        console.log(result)
-                        res.render('file', { title: title, content: result.content, id: result._id.toString()});
+                    return errorRender('Not Found', res);       // TODO Return Not Found
+
+                console.log(result.rows[0].owner ,req.user.id)
+                if(result.rows[0].owner == req.user.id){    // Owner access
+                    console.log('A')
+                    let title = result.rows[0].title;
+                    notesSchema
+                        .findById(id)
+                        .then((result) => {
+                            console.log(result)
+                            console.log('B')
+                            res.render('file', { title: title, content: result.content, id: result._id.toString()});
+                        })
+                        .catch((err) => {
+                            errorRender(err, res);
+                        });
+                }else{
+
+                    postgreSQL.query('select exists(select 1 from shared where docid=$1 and touser = $2)', [id, req.user.id], (err, result1) => {
+                        if(err)
+                            errorRender(err, res)
+                        else {
+                            if(result1.rows[0].exists){
+                                let title = result.rows[0].title;
+                                notesSchema
+                                    .findById(id)
+                                    .then((result) => {
+                                        console.log(result)
+                                        res.render('file', { title: title, content: result.content, id: result._id.toString()});
+                                    })
+                                    .catch((err) => {
+                                        errorRender(err, res);
+                                    });
+                            }else errorRender("Forbidden", res); // TODO Return forbidden
+                        }
                     })
-                    .catch((err) => {
-                        errorRender(err, 500, res);
-                    });
+
+                }
             }
         }
     )
@@ -254,14 +277,50 @@ app.get("/files/:id", checkNotAuthenticated, (req, res) => {
 app.post("/files/:id", checkNotAuthenticated, (req, res) => {
   const { id } = req.params;
   const { content } = req.body;
-  notesSchema
-    .updateOne({ _id: id, owner: req.user.id }, { $set: { content } })
-    .then(() => {
-        res.redirect('back');
-    })
-    .catch((err) => {
-      console.log(err);
-    });
+
+    postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
+        (err, result) => {
+            if(err){
+                return errorRender(err, res);
+            }else {
+
+                if(result.rowCount === 0)
+                    return errorRender('Not Found', res);       // TODO Return Not Found
+
+                if(result.rows[0].owner == req.user.id){    // Owner access
+                    notesSchema
+                        .updateOne({ _id: id }, { $set: { content } })
+                        .then(() => {
+                            res.redirect('back');
+                        })
+                        .catch((err) => {
+                            console.log(err);
+                        });
+                }else{
+
+                    postgreSQL.query('select exists(select 1 from shared where docid=$1 and touser = $2)', [id, req.user.id], (err, result1) => {
+                        if(err)
+                            errorRender(err, res)
+                        else {
+                            if(result1.rows[0].exists){
+                                notesSchema
+                                    .updateOne({ _id: id }, { $set: { content } })
+                                    .then(() => {
+                                        res.redirect('back');
+                                    })
+                                    .catch((err) => {
+                                        console.log(err);
+                                    });
+                            }else errorRender("Forbidden", res); // TODO Return forbidden
+                        }
+                    })
+
+                }
+            }
+        }
+    )
+
+
 });
 
 app.delete("/files/:id", checkNotAuthenticated, (req, res) => {
@@ -271,14 +330,78 @@ app.delete("/files/:id", checkNotAuthenticated, (req, res) => {
       .then(() => {
           postgreSQL.query('DELETE FROM files WHERE mongoid = $1', [id],
               () => {       // TODO error?
-                res.redirect('/dashboard');
+                  postgreSQL.query('DELETE FROM shared WHERE docid = $1', [id],
+                      () => {       // TODO error?
+                          res.redirect('/dashboard');
+                      }
+                  );
               }
           );
       })
       .catch((err) => {
         console.log(err);
+        errorRender(err, res);
       });
   });
+
+//// Sharing files
+app.get( "/shared", checkNotAuthenticated, (req, res) => {
+    postgreSQL.query('SELECT * FROM files JOIN (SELECT * FROM shared where toUser = $1) as foo on docId = mongoId', [req.user.id],
+        (err, result) => {
+            console.log(result.rows, result.rowCount);
+            err? errorRender(err, res) : res.render("files", { files: result.rows, nFiles: result.rowCount});
+        }
+    )
+    }
+);
+
+app.get("/files/:id/editors", checkNotAuthenticated, (req, res) => {
+    const { id } = req.params;
+    postgreSQL.query(
+        'SELECT username FROM (users JOIN (SELECT * FROM shared WHERE docid = $1) as foo on id = toUser)', [id],
+        (err, result) => {
+            console.log(result.rows, result.rowCount);
+            err? errorRender(err, res) : res.render("users", { users: result.rows, nUsers: result.rowCount});
+        }
+    )
+});
+
+app.post("/files/:id/editors", checkNotAuthenticated, (req, res) => {
+    const { id } = req.params;
+    const { username } = req.body;
+    console.log(id, username);
+    postgreSQL.query('select id from users where username = $1 AND id != $2', [username, req.user.id], (err, result) => {
+        if(err){
+            errorRender(err, res);
+        }else {
+            if(result.rowCount > 0)
+            postgreSQL.query('insert into shared values ($1, $2) ON CONFLICT DO NOTHING', [result.rows[0].id, id], (err) => {if (err) errorRender(err, res); else res.redirect('back');})
+            else res.redirect('back');
+        }
+    })
+
+
+});
+
+app.delete("/files/:id/editors", checkNotAuthenticated, (req, res) => {
+    const { id } = req.params;
+    const { username } = req.body;
+    console.log(id, username);
+    postgreSQL.query('select id from users where username = $1 AND id != $2', [username, req.user.id], (err, result) => {
+        if(err){
+            errorRender(err, res);
+        }else {
+            if(result.rowCount > 0)
+                postgreSQL.query('delete from shared where touser = $1 and docid = $2', [result.rows[0].id, id], (err) => {if (err) errorRender(err, res); else res.redirect('back');})
+            else res.redirect('back');      // TODO Avisar que no se encontro el username...
+        }
+    })
+});
+
+
+
+
+
 
 app.use((req, res) => {
     return errorRender('Not Found',404, res);       // TODO Return Not Found

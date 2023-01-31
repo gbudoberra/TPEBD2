@@ -12,16 +12,29 @@
 </head>
 <body>
 <div class="container" style="text-align: center">
-    <form action="/files/<%= id%>" method="post">
-        <div>
-            <h1><label for="content"><%= title%></label></h1>
-            <textarea placeholder="Start writing!" id="content" name="content"><%= content%></textarea>
-        </div>
-        <div>
-            <input type="submit" value="Save" />
-        </div>
-    </form>
-    <a href="/dashboard"><button onclick="return confirm('Any not saved changes will be lost!')">Go back to dashboard</button></a>
+    <div>
+        <form action="/files/<%= id%>" method="post">
+            <div>
+                <h1><label for="content"><%= title%></label></h1>
+                <textarea placeholder="Start writing!" id="content" name="content"><%= content%></textarea>
+            </div>
+            <div>
+                <input type="submit" value="Save" />
+            </div>
+        </form>
+    </div>
+    <div>
+        <a href="/dashboard"><button onclick="return confirm('Any not saved changes will be lost!')">Go back to dashboard</button></a>
+    </div>
+    <hr style="width:100%;text-align:left;margin-left:0">
+    <div style="margin-top: 50px">
+        <form action="/files/<%= id%>/editors" method="post">
+            <a>Add editor:</a>
+            <input placeholder="Enter username" id="username" name="username"/>
+            <input type="submit" value="Add" />
+        </form>
+        <embed src="/files/<%= id%>/editors">
+    </div>
 </div>
 </body>
 <style>

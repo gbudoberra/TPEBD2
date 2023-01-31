@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.css"
+    />
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Files</title>
+</head>
+<body>
+<div class="container" style="text-align: center">
+    <ul aria-label="Users with access to this file:">
+        <% for (var i = 0; i < nUsers; i++) { %>
+            <li><%= users[i].username %></li>
+        <% } %>
+    </ul>
+</div>
+</body>
+<style>
+    ul:before{
+        content:attr(aria-label);
+        font-size:120%;
+        font-weight:bold;
+        margin-left:-15px;
+    }
+</style>
+</html>

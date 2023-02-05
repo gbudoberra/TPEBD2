@@ -2,11 +2,10 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const router = express.Router()
 
+
 const notesSchema = require("./models/notes");
 // const { updateOne } = require("./src/models/notes");
-
 const { postgreSQL } = require("./dbConfig.js");
-
 
 
 router.get("/users", (req, res) => {
@@ -33,19 +32,24 @@ router.get("/users", (req, res) => {
  *  post:
  *   tags: [User]
  *   summary: create user
- *   parameters:
- *     - in: query
- *       name: username
- *       required: true
- *       type: string
- *     - in: query
- *       name: password
- *       required: true
- *       type: string
- *     - in: query
- *       name: password2
- *       required: true
- *       type: string
+ *   consumes: 
+ *     - application/json
+ *   requestBody:
+ *         content:
+ *            application/json:
+ *               schema:
+ *                  type: object
+ *                  required: 
+ *                      - username
+ *                      - password
+ *                      - password2
+ *                  properties:
+ *                      username:
+ *                          type: string
+ *                      password:
+ *                          type: string
+ *                      password2:
+ *                          type: string
  *   responses:
  *     200:
  *       description: user created successfully!
@@ -53,10 +57,12 @@ router.get("/users", (req, res) => {
  *       description: incorrect information
  */
 router.post("/user", async (req, res) => {
-    let { username, password, password2 } = req.query;
-  
+    // let { username, password, password2 } = req.body;
+    let username = req.body.username
+    let password = req.body.password
+    let password2 = req.body.password2
+
     let errors = [];
-  
     console.log({
       username,
       password,
@@ -65,10 +71,12 @@ router.post("/user", async (req, res) => {
   
     if (!username || !password || !password2) {
         res.status(403).json({ message: "Please enter all fields"  });
+        return
     }
   
     if (password !== password2) {
         res.status(403).json({ message: "Passwords do not match" });
+        return
     }
 
       hashedPassword = await bcrypt.hash(password, 10);

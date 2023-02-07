@@ -24,6 +24,11 @@ SESSION_KEY = <key>
 Si se quiere correr el proyecto de forma local se deben correr los scripts:
 - script_postgres
 
+Para el caso de MongoDB se debe correr el siguiente comando
+```
+db.createCollection(Notes)
+```
+
 ## Estructura del Proyecto
 - **src**: carpeta base del proyecto
   - **models**: contiene los schemas para representar la informacion, en este caso solo las Notas.

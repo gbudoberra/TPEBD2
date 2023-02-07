@@ -8,8 +8,18 @@
 - [Autores](#autores-)
 
 ## Prerequisitos
-Para poder correctamente el proyecto el usuario debe tener instalado: 
+
+Para correr correctamente el proyecto el usuario debe tener instalado: 
  - [Node.js](https://nodejs.org/en/download/)
+ - [Postgres] (https://www.postgresql.org/)
+ - [Mongo] (https://www.mongodb.com/es)
+También tener un archivo llamado .env que tenga la siguiente estructura:
+```
+MONGODB_URI = <mongo_url>
+POSTGRES_URI = <postgres_url>
+SESSION_KEY = <key>
+```
+-
 
 ## Estructura del Proyecto
 - **src**: carpeta base del proyecto
@@ -17,7 +27,7 @@ Para poder correctamente el proyecto el usuario debe tener instalado:
   - **views**: vistas de FrontEnd simples en .ejs para testear la funcionalidad.
   - dbConfig.js: archivo de configuración para la conexión con la Base de Datos PostgreSQL.
   - passportConfig.js: Validación de usuarios:contraseña.
-  - server.js: applicaion Node.
+  - server.js: aplicación Node.
   - swagger.js: archivo con la configuración de Swagger.
 
 ## Instrucciones de Compilación 🛠️

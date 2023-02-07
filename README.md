@@ -11,8 +11,9 @@
 
 Para correr correctamente el proyecto el usuario debe tener instalado: 
  - [Node.js](https://nodejs.org/en/download/)
- - [Postgres] (https://www.postgresql.org/)
- - [Mongo] (https://www.mongodb.com/es)
+ - [Postgres](https://www.postgresql.org/)
+ - [Mongo](https://www.mongodb.com/es)
+ 
 También tener un archivo llamado .env que tenga la siguiente estructura:
 ```
 MONGODB_URI = <mongo_url>

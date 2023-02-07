@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const router = express.Router()
+const bp = require("body-parser")
 
 
 const notesSchema = require("./models/notes");
@@ -31,31 +32,40 @@ router.get("/users", (req, res) => {
  * /api/user:
  *  post:
  *   tags: [User]
- *   summary: create a new user
- *   parameters:
- *     - in: query
- *       name: username
- *       required: true
- *       type: string
- *     - in: query
- *       name: password
- *       required: true
- *       type: string
- *     - in: query
- *       name: password2
- *       required: true
- *       type: string
- *       description: repeat your password
+ *   produces:
+ *     - application/json
+ *   consumes: 
+  *     - application/json
+  *   requestBody:
+  *         content:
+  *            application/json:
+  *               schema:
+  *                  type: object
+  *                  required: 
+  *                      - username
+  *                      - password
+  *                      - password2
+  *                  properties:
+  *                      username:
+  *                          type: string
+  *                      password:
+  *                          type: string
+  *                      password2:
+  *                          type: string
  *   responses:
- *     201:
+ *     201: 
  *       description: user created successfully
  *     403:
  *       description: incorrect information
  *     500:
  *       description: internal server error
  */
-router.post("/user", async (req, res) => {
-    let { username, password, password2 } = req.query;
+router.post("/user", bp.json(),  async (req, res) => {
+    // let { username, password, password2 } = JSON.parse(req.body);
+    // console.log(req.body)
+    let username = req.body.username
+    let password = req.body.password
+    let password2 = req.body.password2
 
     console.log({
       username,
@@ -119,15 +129,23 @@ router.post("/user", async (req, res) => {
  *  post:
  *   tags: [Login]
  *   summary: log in
- *   parameters:
- *     - in: query
- *       name: username
- *       required: true
- *       type: string
- *     - in: query
- *       name: password
- *       required: true
- *       type: string
+ *   produces:
+ *     - application/json
+ *   consumes: 
+ *     - application/json
+ *   requestBody:
+ *         content:
+ *            application/json:
+ *               schema:
+ *                  type: object
+ *                  required: 
+ *                      - username
+ *                      - password
+ *                  properties:
+ *                      username:
+ *                          type: string
+ *                      password:
+ *                          type: string
  *   responses:
  *     201:
  *       description: logged in successfully
@@ -136,8 +154,11 @@ router.post("/user", async (req, res) => {
  *     500:
  *       description: internal server error
  */
-router.post("/login", async (req, res) => {
-    let { username, password } = req.query;
+router.post("/login", bp.json(), async (req, res) => {
+    // let { username, password } = req.body;
+    let username = req.body.username
+    let password = req.body.password
+   
     postgreSQL.query(
     `SELECT * FROM users WHERE username = $1`,
     [username],
@@ -230,21 +251,27 @@ router.get("/files", (req, res) => {
  * /api/files:
  *  post:
  *   tags: [Files]
+ *   produces:
+ *     - application/json
+ *   consumes: 
+  *     - application/json
+  *   requestBody:
+  *         content:
+  *            application/json:
+  *               schema:
+  *                  type: object
+  *                  required: 
+  *                      - userId
+  *                      - title
+  *                      - tag
+  *                  properties:
+  *                      userId:
+  *                          type: number
+  *                      title:
+  *                          type: string
+  *                      tag:
+  *                          type: string
  *   summary: Create a file for a specific user
- *   parameters:
- *     - in: query
- *       name: userId
- *       required: true
- *       type: integer
- *       description: User id showed on log in response
- *     - in: query
- *       name: title
- *       required: true
- *       type: string
- *     - in: query
- *       name: tag
- *       required: true
- *       type: string
  *   responses:
  *     201:
  *       description: Created file successfully!
@@ -253,9 +280,9 @@ router.get("/files", (req, res) => {
  *     500:
  *       description: Internal server error
  */
-router.post("/files", (req, res) => {
+router.post("/files", bp.json(), (req, res) => {
     postgreSQL.query('SELECT * FROM users WHERE id = $1',
-    [req.query.userId],
+    [req.body.userId],
     (err, results) => {
         if(err){
             return res.status(500).json({
@@ -269,11 +296,11 @@ router.post("/files", (req, res) => {
             }
             notesSchema({
                 content: "Hello world",
-                owner: req.query.userId
+                owner: req.body.userId
             }).save().then((result) => {
                     console.log(result)
                     postgreSQL.query(
-                        'INSERT INTO files (mongoId, owner, title, tag) VALUES ($1, $2, $3, $4) RETURNING mongoId', [result._id.toString(), req.query.userId, req.query.title, req.query.tag],
+                        'INSERT INTO files (mongoId, owner, title, tag) VALUES ($1, $2, $3, $4) RETURNING mongoId', [result._id.toString(), req.body.userId, req.body.title, req.body.tag],
                         (err) => {
                             if(err){
                                 notesSchema.remove({ _id: result._id });
@@ -388,21 +415,29 @@ router.get("/files/:id", (req, res) => {
  *  put:
  *   tags: [Files]
  *   summary: Edit an specific file from a specific user
+ *   produces:
+ *     - application/json
+ *   consumes: 
+ *     - application/json
+ *   requestBody:
+ *         content:
+ *            application/json:
+ *               schema:
+ *                  type: object
+ *                  required: 
+ *                      - userId
+ *                      - content
+ *                  properties:
+ *                      userId:
+ *                          type: integer
+ *                      content:
+ *                          type: string
  *   parameters:
  *     - in: path
  *       name: id
  *       required: true
  *       type: string
  *       description: File id (mongoid)
- *     - in: query
- *       name: userId
- *       required: true
- *       type: integer
- *       description: User id showed on log in response
- *     - in: query
- *       name: content
- *       required: true
- *       type: string
  *   responses:
  *     201:
  *       description: Edit file successfully
@@ -415,7 +450,7 @@ router.get("/files/:id", (req, res) => {
  *     404:
  *       description: File not found
  */
-router.put("/files/:id",  (req, res) => {
+router.put("/files/:id", bp.json(), (req, res) => {
     const { id } = req.params;
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
@@ -428,8 +463,8 @@ router.put("/files/:id",  (req, res) => {
                 return res.status(404).json({
                     message: "File not found"
                 });
-                if(result.rows[0].owner == req.query.userId){
-                    const content = req.query.content;
+                if(result.rows[0].owner == req.body.userId){
+                    const content = req.body.content;
                     notesSchema
                         .updateOne({ _id: id }, { $set: { content } })
                         .then((result) => {
@@ -454,7 +489,7 @@ router.put("/files/:id",  (req, res) => {
                             });
                         else {
                             if(result1.rows[0].exists){
-                                const content = req.query.content;
+                                const content = req.body.content;
                                 notesSchema
                                     .updateOne({ _id: id }, { $set: { content } })
                                     .then((result) => {
@@ -624,21 +659,29 @@ router.get("/files/:id/editors", (req, res) => {
  *  post:
  *   tags: [Files]
  *   summary: Add editor to an specific file
+ *   produces:
+ *     - application/json
+ *   consumes: 
+ *     - application/json
+ *   requestBody:
+ *         content:
+ *            application/json:
+ *               schema:
+ *                  type: object
+ *                  required: 
+ *                      - username
+ *                      - userId
+ *                  properties:
+ *                      username:
+ *                          type: string
+ *                      userId:
+ *                          type: integer
  *   parameters:
  *     - in: path
  *       name: id
  *       required: true
  *       type: string
  *       description: File id (mongoid)
- *     - in: query
- *       name: userId
- *       required: true
- *       type: integer
- *     - in: query
- *       name: username
- *       required: true
- *       type: string
- *       description: Username of the person you want to share this file
  *   responses:
  *     201:
  *       description: Add editor successfully
@@ -649,7 +692,7 @@ router.get("/files/:id/editors", (req, res) => {
  *     404:
  *       description: Username/File not found
  */
-router.post("/files/:id/editors", (req, res) => {
+router.post("/files/:id/editors", bp.json(), (req, res) => {
     const { id } = req.params;
 
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
@@ -664,7 +707,7 @@ router.post("/files/:id/editors", (req, res) => {
                     message: "File not found"
                 });}
                 else{
-                    postgreSQL.query('select id from users where username = $1 AND id != $2', [req.query.username, req.query.userId],
+                    postgreSQL.query('select id from users where username = $1 AND id != $2', [req.body.username, req.body.userId],
                         (err, result) => {
                             if(err){
                                 return res.status(500).json({

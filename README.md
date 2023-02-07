@@ -1,5 +1,5 @@
 # Notion Bases 2
-## Contenido
+## Presentación del proyecto
 - [Presentación](https://docs.google.com/presentation/d/1AcuIUAWqb3fxZ07We2LuR74BhGhWHHuQSOn45OJK-v4/edit#slide=id.p)
 ## Contenido
 - [Prerequisitos](#prerequisitos)

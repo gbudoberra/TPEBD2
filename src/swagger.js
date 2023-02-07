@@ -31,7 +31,7 @@ router.get("/users", (req, res) => {
  * /api/user:
  *  post:
  *   tags: [User]
- *   summary: create user
+ *   summary: create a new user
  *   parameters:
  *     - in: query
  *       name: username
@@ -45,6 +45,7 @@ router.get("/users", (req, res) => {
  *       name: password2
  *       required: true
  *       type: string
+ *       description: repeat your password
  *   responses:
  *     201:
  *       description: user created successfully
@@ -61,17 +62,14 @@ router.post("/user", async (req, res) => {
       password,
       password2
     });
-  
     if (!username || !password || !password2) {
         res.status(403).json({ message: "Please enter all fields"  });
         return
     }
-  
     if (password !== password2) {
         res.status(403).json({ message: "Passwords do not match" });
         return
     }
-
       hashedPassword = await bcrypt.hash(password, 10);
       console.log(hashedPassword);
       // Validation passed
@@ -87,7 +85,6 @@ router.post("/user", async (req, res) => {
               });
           }
           console.log(results.rows);
-  
           if (results.rows.length > 0) {
             return res.status(403).json({
               message: "Username already registered"
@@ -100,20 +97,20 @@ router.post("/user", async (req, res) => {
               [username, hashedPassword],
               (err, results) => {
                 if (err) {
-                    res.status(500).json({
+                    return res.status(500).json({
                         message: "Internal server error :("
                     });
+                }else{
+                   console.log(results.rows);
+                    return res.status(201).json({
+                        message: "User created successfully"
+                    });
                 }
-                console.log(results.rows);
-                res.status(201).json({
-                    message: "User created successfully"
-                });
               }
             );
           }
         }
       );
-    
   });
 
 /**
@@ -146,34 +143,34 @@ router.post("/login", async (req, res) => {
     [username],
     (err, results) => {
       if (err) {
-        res.status(500).json({
+        return res.status(500).json({
             message: "Internal server error :("
         });
-      }
-
-      if (results.rows.length > 0) {
-        const user = results.rows[0];
-
-        bcrypt.compare(password, user.password, (err, isMatch) => {
-          if (err) {
-            res.status(500).json({
-                message: "Internal server error :("
+      }else{
+        if (results.rows.length > 0) {
+            const user = results.rows[0];
+            bcrypt.compare(password, user.password, (err, isMatch) => {
+              if (err) {
+                return res.status(500).json({
+                    message: "Internal server error :("
+                });
+              }else{
+                if (isMatch) {
+                    return res.status(201).json(results.rows[0]);
+                  } else {
+                    //password is incorrect
+                    return res.status(403).json({
+                        message: "Password is incorrect"
+                    });
+                  }
+              }
             });
-          }
-          if (isMatch) {
-            res.status(201).json(results.rows[0]);
           } else {
-            //password is incorrect
-            res.status(403).json({
-                message: "Password is incorrect" 
+            // No user
+            return res.status(403).json({
+                message: "No user with that username"
             });
           }
-        });
-      } else {
-        // No user
-        res.status(403).json({
-            message: "No user with that username"
-        });
       }
     }
   );
@@ -194,24 +191,39 @@ router.post("/login", async (req, res) => {
  *   responses:
  *     200:
  *       description: Got files successfully
+ *     404:
+ *       description: User not found
  *     500:
  *       description: Internal server error
  */
-//TODO: Deberiamos ver de autenticar desde el swagger
 router.get("/files", (req, res) => {
+    postgreSQL.query('SELECT * FROM users WHERE id = $1',
+    [req.query.userId],
+    (err, results) => {
+        if(err){
+            return res.status(500).json({
+                message: "Internal server error :("
+            });
 
-    postgreSQL.query('SELECT * FROM files WHERE owner = $1', [req.query.userId],
-        (err, result) => {
-            if(err){
-                res.status(500).json({
-                    message: "Internal server error :("
+        }else{
+            if(results.rowCount === 0){
+                return res.status(404).json({
+                    message: "User not found"
                 });
             }else{
-                res.status(200).json(result.rows)
+                postgreSQL.query('SELECT * FROM files WHERE owner = $1', [req.query.userId],(err, result) => {
+                    if(err){
+                        return res.status(500).json({
+                                    message: "Internal server error :("
+                                });
+                    }else{
+                        return res.status(200).json(result.rows)
+                    }})
             }
         }
-    )
-});
+    })
+})
+
 
 /**
  * @swagger
@@ -224,6 +236,7 @@ router.get("/files", (req, res) => {
  *       name: userId
  *       required: true
  *       type: integer
+ *       description: User id showed on log in response
  *     - in: query
  *       name: title
  *       required: true
@@ -235,34 +248,52 @@ router.get("/files", (req, res) => {
  *   responses:
  *     201:
  *       description: Created file successfully!
+ *     404:
+ *       description: User not found
  *     500:
  *       description: Internal server error
  */
 router.post("/files", (req, res) => {
-    // Save in MongoDB
-    notesSchema({
-        content: "Hello world",
-        owner: req.query.userId
-    }).save().then((result) => {
-            console.log(result)
-            postgreSQL.query(
-                'INSERT INTO files (mongoId, owner, title, tag) VALUES ($1, $2, $3, $4) RETURNING mongoId', [result._id.toString(), req.query.userId, req.query.title, req.query.tag],
-                (err) => {
-                    if(err){
-                        notesSchema.remove({ _id: result._id });
-                        res.status(500).json({
-                            message: "Internal server error :("
-                        });
-                    }
-                    res.status(201).json(result);
+    postgreSQL.query('SELECT * FROM users WHERE id = $1',
+    [req.query.userId],
+    (err, results) => {
+        if(err){
+            return res.status(500).json({
+                message: "Internal server error :("
+            });
+        }else{
+            if(results.rowCount === 0){
+                return res.status(404).json({
+                    message: "User not found"
+                });
+            }
+            notesSchema({
+                content: "Hello world",
+                owner: req.query.userId
+            }).save().then((result) => {
+                    console.log(result)
+                    postgreSQL.query(
+                        'INSERT INTO files (mongoId, owner, title, tag) VALUES ($1, $2, $3, $4) RETURNING mongoId', [result._id.toString(), req.query.userId, req.query.title, req.query.tag],
+                        (err) => {
+                            if(err){
+                                notesSchema.remove({ _id: result._id });
+                                return res.status(500).json({
+                                    message: "Internal server error :("
+                                });
+                            }
+                            return res.status(201).json({
+                                message: "File created successfully"
+                            });
+                        }
+                    );
                 }
-            );
+            ).catch((err) => {
+                return res.status(500).json({
+                    message: "Internal server error :("
+                });
+            });
         }
-    ).catch((err) => {
-        res.status(500).json({
-            message: "Internal server error :("
-        });
-    });
+    })
 
 });
 
@@ -271,12 +302,13 @@ router.post("/files", (req, res) => {
  * /api/files/{id}:
  *  get:
  *   tags: [Files]
- *   summary: Get a specific file from a specific user
+ *   summary: Get an specific file from a specific user
  *   parameters:
  *     - in: path
  *       name: id
  *       required: true
  *       type: string
+ *       description: File id (mongoid)
  *     - in: query
  *       name: userId
  *       required: true
@@ -295,33 +327,34 @@ router.post("/files", (req, res) => {
 router.get("/files/:id", (req, res) => {
     console.log(req.params)
     const { id } = req.params;
+    console.log(id)
 
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
             if(err){
-                res.status(500).json({
+                return res.status(500).json({
                     message: "Internal server error :("
                 });
             }else {
                 if(result.rowCount === 0)
-                res.status(404).json({
-                    message: "File not found"
-                });
+                return res.status(404).json({
+                        message: "File not found"
+                    });
                 if(result.rows[0].owner == req.query.userId){
                     notesSchema
                         .findById(id)
                         .then((result) => {
-                            res.status(200).json(result.rows[0]);
+                            return res.status(200).json(result);
                         })
                         .catch(() => {
-                            res.status(500).json({
+                            return res.status(500).json({
                                 message: "Internal server error :("
                             })});
                 }else{
 
                     postgreSQL.query('select exists(select 1 from shared where docid=$1 and touser = $2)', [id, req.user.id], (err, result1) => {
                         if(err)
-                            res.status(500).json({
+                            return res.status(500).json({
                                 message: "Internal server error :("
                             });
                         else {
@@ -329,14 +362,14 @@ router.get("/files/:id", (req, res) => {
                                 notesSchema
                                     .findById(id)
                                     .then((result) => {
-                                        res.status(200).json(result.rows[0]);
+                                        return res.status(200).json(result);
                                     })
                                     .catch(() => {
-                                        res.status(500).json({
+                                        return res.status(500).json({
                                             message: "Internal server error :("
                                         })});
                             }else {
-                                res.status(403).json({
+                                return res.status(403).json({
                                     message: "This file belongs to another user"
                                 });
                             }
@@ -354,12 +387,13 @@ router.get("/files/:id", (req, res) => {
  * /api/files/{id}:
  *  put:
  *   tags: [Files]
- *   summary: Edit a specific file from a specific user
+ *   summary: Edit an specific file from a specific user
  *   parameters:
  *     - in: path
  *       name: id
  *       required: true
  *       type: string
+ *       description: File id (mongoid)
  *     - in: query
  *       name: userId
  *       required: true
@@ -381,21 +415,17 @@ router.get("/files/:id", (req, res) => {
  *     404:
  *       description: File not found
  */
-
-//TODO: Content deberia ser html
 router.put("/files/:id",  (req, res) => {
-  const { id } = req.params;
-  //// Check owner is correct and retrieve title
-    // TODO Podriamos evitar el acceso a postgresql?
+    const { id } = req.params;
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
             if(err){
-                res.status(500).json({
+                return res.status(500).json({
                     message: "Internal server error :("
                 });
             }else {
                 if(result.rowCount === 0)
-                res.status(404).json({
+                return res.status(404).json({
                     message: "File not found"
                 });
                 if(result.rows[0].owner == req.query.userId){
@@ -404,22 +434,22 @@ router.put("/files/:id",  (req, res) => {
                         .updateOne({ _id: id }, { $set: { content } })
                         .then((result) => {
                             if(result.acknowledged){
-                                res.status(201).json({
+                                return res.status(201).json({
                                     message: "Edited file successfully"
                                 });
                             }else{
-                                res.status(401).json(result);
+                                return res.status(401).json(result);
                             }
                         })
                         .catch(() => {
-                            res.status(500).json({
+                            return res.status(500).json({
                                 message: "Internal server error :("
                             });
                         });
                 }else{
                     postgreSQL.query('select exists(select 1 from shared where docid=$1 and touser = $2)', [id, req.query.userId], (err, result1) => {
                         if(err)
-                            res.status(500).json({
+                        return res.status(500).json({
                                 message: "Internal server error :("
                             });
                         else {
@@ -429,20 +459,20 @@ router.put("/files/:id",  (req, res) => {
                                     .updateOne({ _id: id }, { $set: { content } })
                                     .then((result) => {
                                         if(result.acknowledged){
-                                            res.status(201).json({
+                                            return res.status(201).json({
                                                 message: "Edited file successfully"
                                             });
                                         }else{
-                                            res.status(401).json(result);
+                                            return res.status(401).json(result);
                                         }
                                     })
                                     .catch(() => {
-                                        res.status(500).json({
+                                        return res.status(500).json({
                                             message: "Internal server error :("
                                         });
                                     });
                             }else{
-                                res.status(403).json({
+                                return res.status(403).json({
                                     message: "This file belongs to another user"
                                 });
                             }
@@ -460,12 +490,13 @@ router.put("/files/:id",  (req, res) => {
  * /api/files/{id}:
  *  delete:
  *   tags: [Files]
- *   summary: Delete a specific file from a specific user
+ *   summary: Delete an specific file from a specific user
  *   parameters:
  *     - in: path
  *       name: id
  *       required: true
  *       type: string
+ *       description: File id (mongoid)
  *     - in: query
  *       name: userId
  *       required: true
@@ -483,21 +514,19 @@ router.put("/files/:id",  (req, res) => {
  */
 router.delete("/files/:id", (req, res) => {
     const { id } = req.params;
-
-    // TODO Podriamos evitar el acceso a postgresql?
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
             if(err){
-                res.status(500).json({
+                return res.status(500).json({
                     message: "Internal server error :("
                 });
             }else {
                 if(result.rowCount === 0)
-                res.status(404).json({
+                return res.status(404).json({
                     message: "File not found"
                 });
                 if(result.rows[0].owner != req.query.userId){
-                   res.status(403).json({
+                    return res.status(403).json({
                     message: "This file belongs to another user"
                 });
                 }
@@ -507,18 +536,18 @@ router.delete("/files/:id", (req, res) => {
                     postgreSQL.query('DELETE FROM files WHERE mongoid = $1', [id],
                     (err) => {
                         if(err){
-                            res.status(500).json({
+                            return res.status(500).json({
                                 message: "Internal server error :("
                             });
                         }else {
                             postgreSQL.query('DELETE FROM shared WHERE docid = $1', [id],
                                 (err, result) => {
                                     if (err) {
-                                        res.status(500).json({
+                                        return res.status(500).json({
                                             message: "Internal server error :("
                                         });
                                     } else {
-                                        res.status(200).json({
+                                        return res.status(200).json({
                                             message: "Deleted file successfully"
                                         })
                                     }
@@ -528,7 +557,7 @@ router.delete("/files/:id", (req, res) => {
                     });
                 })
                 .catch((err) => {
-                    res.status(500).json({
+                    return res.status(500).json({
                         message: "Internal server error :("
                     });
                 });
@@ -547,6 +576,7 @@ router.delete("/files/:id", (req, res) => {
  *       name: id
  *       required: true
  *       type: string
+ *       description: File id (mongoid)
  *   responses:
  *     200:
  *       description: Got editors successfully
@@ -562,12 +592,12 @@ router.get("/files/:id/editors", (req, res) => {
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
             if(err){
-                res.status(500).json({
+                return res.status(500).json({
                     message: "Internal server error :("
                 });
             }else {
                 if(result.rowCount === 0){
-                res.status(404).json({
+                    return res.status(404).json({
                     message: "File not found"
                 });}
                 else{
@@ -575,11 +605,11 @@ router.get("/files/:id/editors", (req, res) => {
                         'SELECT username FROM (users JOIN (SELECT * FROM shared WHERE docid = $1) as foo on id = toUser)', [id],
                         (err, result) => {
                             if(err){
-                                res.status(500).json({
+                                return res.status(500).json({
                                     message: "Internal server error :("
                                 });
                             }else{
-                                res.status(200).json(result.rows)
+                                return res.status(200).json(result.rows)
                             }
                         })
                 }
@@ -599,6 +629,7 @@ router.get("/files/:id/editors", (req, res) => {
  *       name: id
  *       required: true
  *       type: string
+ *       description: File id (mongoid)
  *     - in: query
  *       name: userId
  *       required: true
@@ -624,19 +655,19 @@ router.post("/files/:id/editors", (req, res) => {
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
             if(err){
-                res.status(500).json({
+                return res.status(500).json({
                     message: "Internal server error :("
                 });
             }else {
                 if(result.rowCount === 0){
-                res.status(404).json({
+                    return res.status(404).json({
                     message: "File not found"
                 });}
                 else{
                     postgreSQL.query('select id from users where username = $1 AND id != $2', [req.query.username, req.query.userId],
                         (err, result) => {
                             if(err){
-                                res.status(500).json({
+                                return res.status(500).json({
                                     message: "Internal server error :("
                                 });
                             }else {
@@ -645,17 +676,17 @@ router.post("/files/:id/editors", (req, res) => {
                                 postgreSQL.query('insert into shared values ($1, $2) ON CONFLICT DO NOTHING', [result.rows[0].id, id],
                                     (err, result) => {
                                         if (err){
-                                            res.status(500).json({
+                                            return res.status(500).json({
                                                 message: "Internal server error :("
                                             });
                                         }else{
-                                            res.status(201).json({
+                                            return res.status(201).json({
                                                 message: "Added editor successfully"
                                             })
                                         }
                                 })}
                                 else{
-                                    res.status(404).json({
+                                    return res.status(404).json({
                                         message: "Username not found"
                                     });
                                 }
@@ -672,12 +703,13 @@ router.post("/files/:id/editors", (req, res) => {
  * /api/files/{id}/editors:
  *  delete:
  *   tags: [Files]
- *   summary: Delete a specific file from a specific user
+ *   summary: Delete editor from an specific file
  *   parameters:
  *     - in: path
  *       name: id
  *       required: true
  *       type: string
+ *       description: File id (mongoid)
  *     - in: query
  *       name: userId
  *       required: true
@@ -703,18 +735,18 @@ router.delete("/files/:id/editors", (req, res) => {
     postgreSQL.query('SELECT * FROM files WHERE mongoid = $1', [id],
         (err, result) => {
             if(err){
-                res.status(500).json({
+                return res.status(500).json({
                     message: "Internal server error :("
                 });
             }else {
                 if(result.rowCount === 0){
-                res.status(404).json({
+                    return res.status(404).json({
                     message: "File not found"
                 });}
                 else{
                     postgreSQL.query('select id from users where username = $1 AND id != $2', [req.query.username, req.query.userId], (err, result) => {
                         if(err){
-                            res.status(500).json({
+                            return res.status(500).json({
                                 message: "Internal server error :("
                             });
                         }else {
@@ -722,17 +754,23 @@ router.delete("/files/:id/editors", (req, res) => {
                                 postgreSQL.query('delete from shared where touser = $1 and docid = $2', [result.rows[0].id, id],
                                     (err, result) => {
                                         if (err) {
-                                            res.status(500).json({
+                                            return res.status(500).json({
                                                 message: "Internal server error :("
                                             });
                                         } else {
-                                            res.status(200).json({
-                                                message: "Deleted editor successfully"
-                                            })
+                                            if(result.rowCount === 0){
+                                                return res.status(403).json({
+                                                    message: "This user is not an editor from this file"
+                                                })
+                                            }else{
+                                                return res.status(200).json({
+                                                    message: "Deleted editor successfully"
+                                                })
+                                            }
                                         }
                                     });
                             }else{
-                                res.status(404).json({
+                                return res.status(404).json({
                                     message: "Username not found"
                                 });
                             }
@@ -748,7 +786,7 @@ router.delete("/files/:id/editors", (req, res) => {
  * /api/shared:
  *  get:
  *   tags: [Files]
- *   summary: Get shared files from a specific user
+ *   summary: Get files that where shared to a specific user
  *   parameters:
  *     - in: query
  *       name: userId
@@ -761,18 +799,15 @@ router.delete("/files/:id/editors", (req, res) => {
  *     500:
  *       description: Internal server error
  */
-
-//TODO: crashea si el endpoint es /files/shared :(
 router.get( "/shared", (req, res) => {
-    console.log('holaaa')
     postgreSQL.query('SELECT * FROM files JOIN (SELECT * FROM shared where toUser = $1) as foo on docId = mongoId', [req.query.userId],
             (err, result) => {
                 if (err) {
-                    res.status(500).json({
+                    return res.status(500).json({
                         message: "Internal server error :("
                     });
                 } else {
-                    res.status(200).json(result.rows)
+                    return res.status(200).json(result.rows)
                 }
             });
     }

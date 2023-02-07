@@ -379,7 +379,7 @@ router.get("/files/:id", (req, res) => {
                             })});
                 }else{
 
-                    postgreSQL.query('select exists(select 1 from shared where docid=$1 and touser = $2)', [id, req.user.id], (err, result1) => {
+                    postgreSQL.query('select exists(select 1 from shared where docid=$1 and touser = $2)', [id, req.query.userId], (err, result1) => {
                         if(err)
                             return res.status(500).json({
                                 message: "Internal server error :("

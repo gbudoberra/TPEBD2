@@ -1,4 +1,4 @@
-# Notion Bases 2
+# Bases 2
 ## Presentación del proyecto
 - [Presentación](https://docs.google.com/presentation/d/1AcuIUAWqb3fxZ07We2LuR74BhGhWHHuQSOn45OJK-v4/edit#slide=id.p)
 ## Contenido
@@ -21,7 +21,8 @@ MONGODB_URI = <mongo_url>
 POSTGRES_URI = <postgres_url>
 SESSION_KEY = <key>
 ```
--
+Si se quiere correr el proyecto de forma local se deben correr los scripts:
+- script_postgres
 
 ## Estructura del Proyecto
 - **src**: carpeta base del proyecto

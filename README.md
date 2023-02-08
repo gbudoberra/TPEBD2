@@ -22,7 +22,7 @@ POSTGRES_URI = <postgres_url>
 SESSION_KEY = <key>
 ```
 Si se quiere correr el proyecto de forma local se deben correr los scripts:
-- script_postgres
+- script_postgres.sql
 
 Para el caso de MongoDB se debe correr el siguiente comando
 ```
